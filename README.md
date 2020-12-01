@@ -36,13 +36,15 @@ Contract.Send(Contract.Diff(PlayerData, ChangedValues))
 ## Links
 
 - **Latest stable version**
-    - https://www.roblox.com/library/@TODO_LINK
+   - https://www.roblox.com/library/6028467418/NetworkContract
 - **Forum**
-    - https://devforum.roblox.com/t/@TODO_LINK
+   - https://devforum.roblox.com/t/900276
+- **Benchmark place**
+   - https://github.com/nidorx/roblox-network-contract/blob/main/Benchmark.rbxl
 
 ## Installation
 
-You can do the installation directly from Roblox Studio, through the Toolbox search for `NetworkContract`, this is the minified version (https://www.roblox.com/library/@TODO_LINK).
+You can do the installation directly from Roblox Studio, through the Toolbox search for `NetworkContract`, this is the minified version (https://www.roblox.com/library/6028467418/NetworkContract).
 
 If you want to work with the original source code (for debugging or working on improvements), access the repository at https://github.com/nidorx/roblox-network-contract
 

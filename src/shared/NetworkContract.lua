@@ -5,7 +5,7 @@
 
    https://github.com/nidorx/roblox-network-contract
 
-   Discussions about this script are at https://devforum.roblox.com/t/841175
+   Discussions about this script are at https://devforum.roblox.com/t/900276
 
    ------------------------------------------------------------------------------
 

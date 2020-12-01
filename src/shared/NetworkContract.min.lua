@@ -6,7 +6,7 @@
 	This is a minified version of NetworkContract, to see the full source code visit
 	https://github.com/nidorx/roblox-network-contract
 
-	Discussions about this script are at https://devforum.roblox.com/t/@TODO_ID_FORUM
+	Discussions about this script are at https://devforum.roblox.com/t/900276
 
 	This code was minified using https://goonlinetools.com/lua-minifier/
 
