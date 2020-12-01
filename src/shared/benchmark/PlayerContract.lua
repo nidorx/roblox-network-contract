@@ -19,5 +19,5 @@ return function (OnMessage)
       'Alive',
       'Nick',
       'UserId'
-   }, OnMessage)
+   }, OnMessage, nil, false)
 end

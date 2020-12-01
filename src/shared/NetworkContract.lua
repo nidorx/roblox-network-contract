@@ -1,5 +1,5 @@
 --[[
-   NetworkContract v1.0 [2020-12-01 09:05]
+   NetworkContract v1.0 [2020-12-01 10:10]
 
    Facilitates Client Server communication through Events. Has Encode, Decode, Diff, Patch and Message Knowledge
 
@@ -268,12 +268,13 @@ end
    carried when only
 
    Params:
-      ID             {Number|String}
-      attributes     {String []}
-      OnMessage      {Function (data, id, isDelta, player, contract)}
-      OnAcknowledge  {Function (id, player, contract)}
+      ID                {Number|String}
+      attributes        {String []}
+      OnMessage         {Function (data, id, isDelta, player, contract)}
+      OnAcknowledge     {Function (id, player, contract)}
+      AutoAcknowledge   {bool} default true
 ]]
-local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge)
+local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge, AutoAcknowledge)
 
    local KEY_TO_IDX = {}
    local IDX_TO_KEY = {}
@@ -326,7 +327,7 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge)
                OnAcknowledge(id, player, Contract)
             end
          else
-            if id ~= nil then
+            if AutoAcknowledge ~= false and id ~= nil then
                -- Sends knowledge message to the player
                Event:FireClient(player, {true, id})
             end
@@ -339,6 +340,11 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge)
 
       Contract.Send = function(data, id, player)
          Event:FireClient(player, {data, id})
+      end
+
+      Contract.Acknowledge = function(id, player)
+         -- Sends knowledge message to the player
+         Event:FireClient(player, {true, id})
       end
    else
       Event = game.ReplicatedStorage:WaitForChild(EventName)
@@ -354,7 +360,7 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge)
                OnAcknowledge(id, nil, Contract)
             end
          else
-            if id ~= nil then
+            if AutoAcknowledge ~= false and id ~= nil then
                -- Sends knowledge message to the server
                Event:FireServer({true, id})
             end
@@ -367,6 +373,11 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge)
 
       Contract.Send = function(data, id)
          Event:FireServer({data, id})
+      end
+
+      Contract.Acknowledge = function(id)
+         -- Sends knowledge message to the server
+         Event:FireServer({true, id})
       end
    end
 
