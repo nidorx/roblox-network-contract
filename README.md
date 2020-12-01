@@ -48,7 +48,9 @@ If you want to work with the original source code (for debugging or working on i
 
 ## What is NetworkContract
 
-NetworkContract is a module for Roblox that facilitates Client-Server communication through RemoteEvent. NetworkContract has the following characteristics:
+NetworkContract is a module for Roblox that facilitates Client-Server communication through RemoteEvent.
+
+NetworkContract has the following characteristics:
 
 - Assists in the definition of consistent contracts between Client and Server
 - Simplifies confirmation of message reception by the other party (automatically or manually)
@@ -67,7 +69,7 @@ The `NetworkContract` method has the following signature:
 
 Where:
    - **`id`** _`{Number|String}`_ : Unique contract identifier, used to create `RemoteEvent` on the server side
-   - **`attributes`** _`{String []}`_ : List with the attributes of the contract, maximum limit of 32 items (see topic Limitations). To increase performance during encode and decode, it is important that the attributes that suffer the most changes are at the beginning of the list, and the most static items at the end of the list.
+   - **`attributes`** _`{String[]}`_ : List with the attributes of the contract, maximum limit of 32 items (see topic Limitations). To increase performance during encode and decode, it is important that the attributes that suffer the most changes are at the beginning of the list, and the most static items at the end of the list.
    - **`OnMessage`** _`{Function(data, id, isDelta, player, contract)}`_ : Called whenever a party receives a message. The `player` parameter is `nil` when using the contract on the client side.
       > **IMPORTANT!** Received data can be null it is important that the developer validate before using
    - **`OnAcknowledge`** _`{Function(id, player, contract)}`_ _`(optional)`_ : Called whenever you receive a confirmation message from the other party

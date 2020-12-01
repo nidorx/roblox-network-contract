@@ -1,5 +1,5 @@
 --[[
-   NetworkContract v1.0 [2020-12-01 10:10]
+   NetworkContract v1.0 [2020-12-01 15:40]
 
    Facilitates Client Server communication through Events. Has Encode, Decode, Diff, Patch and Message Knowledge
 
@@ -56,6 +56,30 @@ local function FuzzyEqNumber(a, b)
    end
 
    return math.abs(a - b) < EPSILON
+end
+
+local function FuzzyEqCFrame(cframea, cframeb)
+   if cframea == cframeb then
+      return true
+   end
+
+   if not cframea.Position:FuzzyEq(cframeb.Position) then
+      return false
+   end
+
+   if not cframea.LookVector:FuzzyEq(cframeb.LookVector) then
+      return false
+   end
+
+   if not cframea.RightVector:FuzzyEq(cframeb.RightVector) then
+      return false
+   end
+
+   if not cframea.UpVector:FuzzyEq(cframeb.UpVector) then
+      return false
+   end
+
+   return true
 end
 
 --[[
@@ -162,8 +186,16 @@ local function Diff(old, nue, IDX_TO_KEY)
          local bType =  typeof(bVal)
          local diff = false
 
-         if aType == 'number' and bType == 'number' and not FuzzyEqNumber(aVal, bVal) then
-            diff = true
+         if aType == bType then
+            if aType == 'number' and not FuzzyEqNumber(aVal, bVal) then
+               diff = true
+            elseif aType == 'Vector3' and not aVal:FuzzyEq(bVal) then
+               diff = true
+            elseif aType == 'CFrame' and not FuzzyEqCFrame(aVal, bVal) then
+               diff = true
+            elseif aVal ~= bVal then
+               diff = true
+            end
          elseif aVal ~= bVal then
             diff = true
          end
