@@ -102,11 +102,11 @@ local function RuntTests(Contract)
 
    --[[
       Checks whether the generated delta is correct, in the format
-      {FALSE, BITMASK_DEL, BITMASK_MOD, VALUE_A, VALUE_B, VALUE_N...}
+      {BITMASK_DEL, BITMASK_MOD, VALUE_A, VALUE_B, VALUE_N...}
    ]]
    local function testDelta(object, delta, removedKeys, changedKeys)
 
-      if table.getn(delta) ~= table.getn(changedKeys) + 3 then
+      if table.getn(delta) ~= table.getn(changedKeys) + 2 then
          error('Delta length invalid')
       end
 
@@ -126,17 +126,12 @@ local function RuntTests(Contract)
          end
       end
 
-      if delta[1] ~= false then
-         print('expected=', false, ', value=', delta[1])
-         error('Invalid Signature')
-      end
-
-      if delta[2] ~= removedMask then
+      if delta[1] ~= removedMask then
          print('expectedMask=', removedMask, ', deltaMask=', delta[2] )
          error('Invalid BITMASK')
       end
 
-      if delta[3] ~= changedMask then
+      if delta[2] ~= changedMask then
          print('expectedMask=', changedMask, ', deltaMask=', delta[3] )
          error('Invalid BITMASK')
       end

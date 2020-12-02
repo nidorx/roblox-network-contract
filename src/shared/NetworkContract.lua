@@ -1,5 +1,5 @@
 --[[
-   NetworkContract v1.0 [2020-12-01 15:40]
+   NetworkContract v1.1 [2020-12-02 14:30]
 
    Facilitates Client Server communication through Events. Has Encode, Decode, Diff, Patch and Message Knowledge
 
@@ -47,6 +47,14 @@ for i=0, 31 do
    table.insert(FLAGS, lshift(1, i))
 end
 
+-- Exponential weighted moving average RTT (https://en.wikipedia.org/wiki/Round-trip_delay)
+local RTT_ALPHA      = 0.2
+local RTT_ALPHA_INV  = 1 - RTT_ALPHA
+local RTTClients     = {}
+local RTTServer      = 0
+
+local function EMPTY_FN() end
+
 -- precision (aka 1e-5)
 local EPSILON = 0.00001
 
@@ -91,8 +99,8 @@ end
    the time needed to perform the decoding (which validates the BITMASKs in order).
 ]]
 local function Encode(data, IDX_TO_KEY)
-   local mask = ZERO
-   local out = {true, mask}
+   local mask  = ZERO
+   local out   = { true, mask }
 
    for index, key in ipairs(IDX_TO_KEY) do
       local value = data[key]
@@ -100,11 +108,6 @@ local function Encode(data, IDX_TO_KEY)
          mask = bor(mask, FLAGS[index])
          table.insert(out, value)
       end
-   end
-
-   if mask == ZERO then
-      -- Empty object
-      return nil
    end
 
    out[2] = mask
@@ -128,7 +131,6 @@ end
 ]]
 local function Decode(data, IDX_TO_KEY, LEN)
    if not data then
-      -- never returns nil
       return {}
    end
 
@@ -153,10 +155,9 @@ end
 --[[
    Generates a Diff (delta) of two objects. A diff contains the following signature:
 
-   {FALSE, BITMASK_DEL, BITMASK_MOD, VALUE_A, VALUE_B, VALUE_N ...}
+   { BITMASK_DEL, BITMASK_MOD, VALUE_A, VALUE_B, VALUE_N ...}
 
    Where:
-      FALSE          = Always false, indicates that it is a DIFF
       BITMASK_DEL    = Attribute IDs removed
       BITMASK_MOD    = Modified attribute ids
       VALUE_N        = Values modified
@@ -165,7 +166,7 @@ local function Diff(old, nue, IDX_TO_KEY)
 
    local maskMod   = ZERO
    local maskDel   = ZERO
-   local out       = { false, maskDel, maskMod }
+   local out       = { maskDel, maskMod }
 
    for index, key in ipairs(IDX_TO_KEY) do
       local aVal = old[key]
@@ -208,13 +209,8 @@ local function Diff(old, nue, IDX_TO_KEY)
       end
    end
 
-   if maskDel == ZERO and maskMod == ZERO then
-      -- Object has not changed
-      return nil
-   end
-
-   out[2] = maskDel
-   out[3] = maskMod
+   out[1] = maskDel
+   out[2] = maskMod
 
    return out
 end
@@ -222,17 +218,16 @@ end
 --[[
    Apply the delta to an object, returning the result of the join. A diff contains the following signature:
 
-   {BITMASK_DEL, BITMASK_MOD, VALUE_A, VALUE_B, VALUE_N ...}
+   { BITMASK_DEL, BITMASK_MOD, VALUE_A, VALUE_B, VALUE_N ...}
 
    Where:
-      FALSE          = Always false, indicates that it is a DIFF
       BITMASK_DEL    = Attribute IDs removed
       BITMASK_MOD    = Modified attribute ids
       VALUE_N        = Values modified
 ]]
 local function Patch(old, delta, IDX_TO_KEY, KEY_TO_IDX, LEN)
    if not delta then
-      delta = {false, ZERO, ZERO}
+      delta = { ZERO, ZERO }
    end
 
    if not old then
@@ -240,15 +235,15 @@ local function Patch(old, delta, IDX_TO_KEY, KEY_TO_IDX, LEN)
    end
 
    local out       = {}
-   local maskDel   = delta[2] -- removals
-   local maskMod   = delta[3] -- additions / changes
+   local maskDel   = delta[1] -- removals
+   local maskMod   = delta[2] -- additions / changes
    local ignored   = {}       -- attributes that will be ignored when copying from old
    local len       = table.getn(delta)
 
    local lastIdx   = 1
 
    if maskMod ~= ZERO then
-      for i=4, len do
+      for i=3, len do
          for currIdx=lastIdx, LEN do
             lastIdx     = lastIdx+1
             local flag  = FLAGS[currIdx]
@@ -318,9 +313,6 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge, AutoA
 
    local LEN = table.getn(IDX_TO_KEY)
 
-   local EventName = 'NCRCT_'..ID
-   local Event
-
    local Contract =  {
       Encode = function(data)
          return Encode(data, IDX_TO_KEY)
@@ -339,77 +331,199 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge, AutoA
       end
    }
 
-   if RunService:IsServer() then
-      if game.ReplicatedStorage:FindFirstChild(EventName) then
-         error('There is already an event with the given ID ('..EventName..')')
-      end
-
-      Event = Instance.new('RemoteEvent')
-      Event.Parent = game.ReplicatedStorage
-      Event.Name = EventName
-
-      -- Receives client messages
-      Event.OnServerEvent:Connect(function(player, message)
-         local data  = message[1]
-         local id    = message[2]
-
-         if data == true then
-            -- Acknowledgement  message
-            if id ~= nil and OnAcknowledge ~= nil then
-               OnAcknowledge(id, player, Contract)
-            end
-         else
-            if AutoAcknowledge ~= false and id ~= nil then
-               -- Sends knowledge message to the player
-               Event:FireClient(player, {true, id})
-            end
-
-            if OnMessage ~= nil then
-               OnMessage(data, id, data ~= nil and (data[1] == false) or false, player, Contract)
-            end
-         end
-      end)
-
-      Contract.Send = function(data, id, player)
-         Event:FireClient(player, {data, id})
-      end
-
-      Contract.Acknowledge = function(id, player)
-         -- Sends knowledge message to the player
-         Event:FireClient(player, {true, id})
+   if OnMessage == nil then
+      -- If OnMessage is not informed it means that the interest in this contract is only to use the utility
+      -- methods (Encode, Decode, Diff and Patch). Thus, there is no need to create events
+      Contract.Send        = EMPTY_FN
+      Contract.Acknowledge = EMPTY_FN
+      Contract.RTT = function()
+         return 0
       end
    else
-      Event = game.ReplicatedStorage:WaitForChild(EventName)
+      local Event
+      local EventName = 'NCRCT_'..ID
 
-      -- Receives server messages
-      Event.OnClientEvent:Connect(function(message)
-         local data  = message[1]
-         local id    = message[2]
+      AutoAcknowledge  = AutoAcknowledge ~= false
 
-         if data == true then
-            -- Acknowledgement  message
-            if id ~= nil and OnAcknowledge ~= nil then
-               OnAcknowledge(id, nil, Contract)
-            end
-         else
-            if AutoAcknowledge ~= false and id ~= nil then
-               -- Sends knowledge message to the server
-               Event:FireServer({true, id})
-            end
+      if RunService:IsServer() then
+         if game.ReplicatedStorage:FindFirstChild(EventName) then
+            error('There is already an event with the given ID ('..EventName..')')
+         end
 
-            if OnMessage ~= nil then
-               OnMessage(data, id, data ~= nil and (data[1] == false) or false, nil, Contract)
+         Event = Instance.new('RemoteEvent')
+         Event.Parent = game.ReplicatedStorage
+         Event.Name = EventName
+
+         -- latest messages sent per player, used to calculate RTT
+         local LastMessages = {}
+
+         local function CalculateRTT(messageId, player)
+            local userId = player.UserId
+            if LastMessages[userId] ~= nil and LastMessages[userId][messageId] ~= nil then               
+               if RTTClients[userId] == nil then
+                  RTTClients[userId] = {
+                     LastRttTime = -math.huge,
+                     RTT         = 0
+                  }
+               end
+               local clientRtt   = RTTClients[userId]
+               local sendTime    = LastMessages[userId][messageId]
+
+               -- ignore if you have already processed a more recent message
+               if sendTime > clientRtt.LastRttTime then
+                  local SampleRTT = os.clock() - sendTime
+                  if clientRtt.RTT == 0 then
+                     clientRtt.RTT = SampleRTT
+                  else
+                     -- EstimatedRTT = α*SampleRTT + (1- α)*EstimatedRTT
+                     clientRtt.RTT = RTT_ALPHA * SampleRTT + RTT_ALPHA_INV * clientRtt.RTT
+                  end
+                  clientRtt.LastRttTime = sendTime
+               end               
+               LastMessages[userId][messageId] = nil
             end
          end
-      end)
 
-      Contract.Send = function(data, id)
-         Event:FireServer({data, id})
-      end
+         -- Receives client messages
+         Event.OnServerEvent:Connect(function(player, message)
+            local data  = message[1]
+            local messageId    = message[2]
 
-      Contract.Acknowledge = function(id)
-         -- Sends knowledge message to the server
-         Event:FireServer({true, id})
+            if data == true then
+               -- Acknowledgement  message
+               if messageId ~= nil then
+                  if AutoAcknowledge then
+                     CalculateRTT(messageId, player)
+                  end
+
+                  if OnAcknowledge ~= nil then
+                     OnAcknowledge(messageId, player, Contract)
+                  end
+               end
+            else
+               -- the message is never nil
+               if data ~= nil then
+                  if AutoAcknowledge and messageId ~= nil then
+                     -- Sends knowledge message to the player
+                     Event:FireClient(player, {true, messageId})
+                  end
+                  OnMessage(data, messageId, data[1] ~= true, player, Contract)
+               end
+            end
+         end)
+
+         Contract.Send = function(data, messageId, player)
+            if data == nil then
+               return
+            end
+            if AutoAcknowledge and messageId ~= nil then
+               -- Records the moment of sending the message, used to calculate the RTT of that client
+               -- Only do this if auto responder is set up
+               local userId = player.UserId
+               if LastMessages[userId] == nil then
+                  LastMessages[userId] = {}
+               end
+               if LastMessages[userId][messageId] == nil then
+                  -- only saves the first time the message with this code was sent
+                  LastMessages[userId][messageId] = os.clock()
+               end
+            end
+
+            Event:FireClient(player, {data, messageId})
+         end
+
+         Contract.Acknowledge = function(id, player)
+            -- Sends knowledge message to the player
+            Event:FireClient(player, {true, id})
+         end
+
+         -- Average Client RTT
+         Contract.RTT = function(player)
+            local clientRtt = RTTClients[player.UserId]
+            if clientRtt ~= nil then
+               return clientRtt.RTT
+            end
+            return 0
+         end
+      else
+         Event = game.ReplicatedStorage:WaitForChild(EventName)
+
+         -- latest messages sent to the server
+         local LastMessages = {}
+         local LastRttTime = -math.huge
+
+         local function CalculateRTT(messageId)
+            if LastMessages[messageId] ~= nil then      
+               local sendTime = LastMessages[messageId]
+               -- ignore if you have already processed a more recent message
+               if sendTime > LastRttTime then
+                  local SampleRTT = os.clock() - sendTime
+                  if RTTServer == 0 then
+                     RTTServer = SampleRTT
+                  else
+                     -- EstimatedRTT = α*SampleRTT + (1- α)*EstimatedRTT
+                     RTTServer = RTT_ALPHA * SampleRTT + RTT_ALPHA_INV * RTTServer
+                  end
+                  LastRttTime = sendTime
+               end
+
+               LastMessages[messageId] = nil
+            end
+         end
+
+         -- Receives server messages
+         Event.OnClientEvent:Connect(function(message)
+            local data        = message[1]
+            local messageId   = message[2]
+
+            if data == true then
+               -- Acknowledgement  message
+               if messageId ~= nil then
+
+                  if AutoAcknowledge then
+                     CalculateRTT(messageId)
+                  end
+
+                  if OnAcknowledge ~= nil then
+                     OnAcknowledge(messageId, nil, Contract)
+                  end
+               end
+            else
+               -- the message is never nil
+               if data ~= nil then
+                  if AutoAcknowledge and messageId ~= nil then
+                     -- Sends knowledge message to the server
+                     Event:FireServer({true, messageId})
+                  end
+   
+                  OnMessage(data, messageId, data[1] ~= true, nil, Contract)
+               end
+            end
+         end)
+
+         Contract.Send = function(data, messageId)
+            if data == nil then
+               return
+            end
+            if AutoAcknowledge and messageId ~= nil then
+               -- Records the moment of sending the message, used to calculate the RTT of that client
+               -- Only do this if auto responder is set up
+               if LastMessages[messageId] == nil then
+                  -- Only saves the first time the message with this code was sent
+                  LastMessages[messageId] = os.clock()
+               end
+            end
+            Event:FireServer({data, messageId})
+         end
+
+         Contract.Acknowledge = function(id)
+            -- Sends knowledge message to the server
+            Event:FireServer({true, id})
+         end
+
+         Contract.RTT = function()
+            return RTTServer
+         end
       end
    end
 

@@ -8,7 +8,7 @@ local Objects        = require(game.ReplicatedStorage:WaitForChild('benchmark'):
 local PLAYER
 local SEED     = Objects.SEED
 local OBJECTS  = Objects.GetList()
-local Contract = ContractFN()
+local Contract = ContractFN(function() end)
 
 -- used to control benchmark execution
 local EventControl   = Instance.new('RemoteEvent')

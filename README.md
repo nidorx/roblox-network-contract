@@ -1,7 +1,7 @@
 
 ![](repository-open-graph.png)
 
-**Roblox Network Contract** facilitates Client Server communication through Events. Has Encode, Decode, Diff, Patch and Message Knowledge
+**Roblox Network Contract** facilitates Client Server communication through Events. Has Encode, Decode, Diff, Patch, RTT and Message Knowledge
 
 
 **TLDR;**
@@ -72,8 +72,7 @@ The `NetworkContract` method has the following signature:
 Where:
    - **`id`** _`{Number|String}`_ : Unique contract identifier, used to create `RemoteEvent` on the server side
    - **`attributes`** _`{String[]}`_ : List with the attributes of the contract, maximum limit of 32 items (see topic Limitations). To increase performance during encode and decode, it is important that the attributes that suffer the most changes are at the beginning of the list, and the most static items at the end of the list.
-   - **`OnMessage`** _`{Function(data, id, isDelta, player, contract)}`_ : Called whenever a party receives a message. The `player` parameter is `nil` when using the contract on the client side.
-      > **IMPORTANT!** Received data can be null it is important that the developer validate before using
+   - **`OnMessage`** _`{Function(data, id, isDelta, player, contract)}`_ _`(optional)`_ : Called whenever a party receives a message. The `player` parameter is `nil` when using the contract on the client side. If not informed, the server will not create RemoteEvent and the client will not make the connection either. This can be useful when you only want to use the Encode, Decode, Patch and Diff methods
    - **`OnAcknowledge`** _`{Function(id, player, contract)}`_ _`(optional)`_ : Called whenever you receive a confirmation message from the other party
    - **`AutoAcknowledge`** _`{bool} default true`_ _`(optional)`_ : When `true` and the received message has an ID, NetworkContract responds immediately with a confirmation message. To remove this behavior, just enter `false` in this parameter. To send a manual confirmation message, use the `Acknowledge` method of the contract instance
 
@@ -85,6 +84,7 @@ The contract instance created by `NetworkContract` has the following methods:
 - **`Patch(oldObject, delta)`** : Decodes a delta encode (diff) applying the changes to the informed object. This method returns a new object, does not modify the `oldObject`
 - **`Send(data, id)`** : Transmits an encoded object
 - **`Acknowledge(id)`** : When `AutoAcknowledge == false`, you can send a confirmation message using this method
+- **`RTT(player)`** : Gets the RTT (Round Trip time) of the connection with that player or with the server if the method is invoked on the client side. RTT is global, it is computed for all contract messages that set `AutoAcknowledge = true`. RTT is calculated using the exponential weighted average
 
 ```lua
 local NetworkContract = require(game.ReplicatedStorage:WaitForChild('NetworkContract'))
