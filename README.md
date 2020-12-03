@@ -79,7 +79,7 @@ Where:
 The contract instance created by `NetworkContract` has the following methods:
 
 - **`Encode(object)`** : Encodes an object to be transmitted.
-- **`Decode(data)`** : Decodes an object received over the network. Generally used within the contract's `OnMessage` method when`isDelta == false`
+- **`Decode(data)`** : Decodes an object received over the network. Generally used within the contract's `OnMessage` method when `isDelta == false`
 - **`Diff(oldObject, changedObject)`** : It encodes an object (generating a diff, or delta encode), returning only those attributes that have been modified, added or removed. This is the best format for transmitting your data
 - **`Patch(oldObject, delta)`** : Decodes a delta encode (diff) applying the changes to the informed object. This method returns a new object, does not modify the `oldObject`
 - **`Send(data, id)`** : Transmits an encoded object
@@ -148,7 +148,7 @@ Where:
 - **`BITMASK`**: All the ids of the attributes being transported, in a single Integer
 - **`VALUE_N...`** : All values being transported, sorted and mapped by BITMASK
 
-A NetworkContract delta encode (Diff) has a similar signature, the only differences being `false` at the beginning and an additional `BITMASK` to register the removed attributes: `{FALSE, BITMASK_DEL, BITMASK_MOD, VALUE_N ...}`
+A NetworkContract delta encode (Diff) has a similar signature, the only differences at the beginning and an additional `BITMASK` to register the removed attributes: `{ BITMASK_DEL, BITMASK_MOD, VALUE_N ...}`
 
 
 
