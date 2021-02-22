@@ -1,5 +1,5 @@
 --[[
-   NetworkContract v1.1 [2020-12-02 14:30]
+   NetworkContract v1.2 [2020-12-05 12:40]
 
    Facilitates Client Server communication through Events. Has Encode, Decode, Diff, Patch and Message Knowledge
 
@@ -282,6 +282,10 @@ local function Patch(old, delta, IDX_TO_KEY, KEY_TO_IDX, LEN)
    return out
 end
 
+local function IsDelta(data)
+   return data[1] ~= true
+end
+
 --[[
    Instantiates a new contract.
 
@@ -328,6 +332,10 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge, AutoA
 
       Patch = function(old, delta)
          return Patch(old, delta, IDX_TO_KEY, KEY_TO_IDX, LEN)
+      end,
+
+      IsDelta = function(data)
+         return IsDelta(data)
       end
    }
 
@@ -407,7 +415,7 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge, AutoA
                      -- Sends knowledge message to the player
                      Event:FireClient(player, {true, messageId})
                   end
-                  OnMessage(data, messageId, data[1] ~= true, player, Contract)
+                  OnMessage(data, messageId, IsDelta(data), player, Contract)
                end
             end
          end)
@@ -496,7 +504,7 @@ local function CreateNewContract(ID, attributes, OnMessage, OnAcknowledge, AutoA
                      Event:FireServer({true, messageId})
                   end
    
-                  OnMessage(data, messageId, data[1] ~= true, nil, Contract)
+                  OnMessage(data, messageId, IsDelta(data), nil, Contract)
                end
             end
          end)
